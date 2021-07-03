@@ -1,0 +1,70 @@
+- host: all
+  tasks:
+##-----------VPC create------------------##
+   - name: Create a VPC with tags
+     ec2_vpc_net:
+        name: ansible-vpc
+        cidr_block: 10.10.0.0/16
+        region: ap-south-1
+        tags:
+          Name: ansible-Automation
+     register: ec2_vpc_net_result
+
+##------------------Create Internet Gateway---------------------##
+   - name: Create Internet Gatway using ansible playbook
+     ec2_vpc_igw:
+       vpc_id: "{{ ec2_vpc_net_result.vpc.id }}"
+       region: ap-south-1 
+       state: present
+     register: igw_result
+
+## ---------------------Create Subnet--------------------------##
+   - name: create subnet-1 in a VPC.
+     ec2_vpc_subnet:
+        region: ap-south-1
+        state: present
+        vpc_id: "{{ ec2_vpc_net_result.vpc.id }}"
+        cidr: 10.10.0.0/24
+        az: ap-south-1a
+        wait: yes
+     register: subnet_result
+
+##----------------------- Create Security Group --------------------##
+
+   - name: Create Security Group 
+     ec2_group:
+        name: ansible_sg
+        description: an example EC2 group
+        vpc_id: "{{ ec2_vpc_net_result.vpc.id }}"
+        region: ap-south-1
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 443
+            to_port: 443
+            cidr_ip: 0.0.0.0/0
+##------------------------Create EC2 server--------------------------------##
+   - name: Create ec2-instance 
+     ec2:
+      key_name: all-in-one-aws-kp
+      group: ansible_sg
+      region: ap-south-1
+      count: 1
+     # vpc_subnet_id: 
+      subnet-id: "{{subnet_result.subnet-id}}"
+      assign_public_ip: yes
+      image: ami-011c99152163a87ae
+      instance_type: t2.nano
+      instance_tags: 
+        name: Ansible-tag
+      wait: yes
+      wait_timeout: 500
+      monitoring: no
+     register: ec2_vpc_net_result
